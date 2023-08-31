@@ -20,16 +20,15 @@ import logging
 import sys
 import ssl
 
-from typing import cast
 from ipaddress import ip_address, IPv4Network, IPv6Network, AddressValueError
 from cryptography import x509
-from cryptography.x509 import ExtensionOID, DNSName, ExtensionNotFound, NameOID
+
 from helper.logging import setup_logging
-from cryptography.x509.extensions import DuplicateExtension
+from helper.certificate import get_common_names, get_dns_alternative_names
 
 
 PROGRAM_NAME = 'TLS-Compliance-Check'
-PROGRAM_VERSION = '0.0.1'
+PROGRAM_VERSION = '0.0.2'
 PROGRAM_DESCRIPTION = 'Identify corporate domains and check if TLS parameters are compliant to BSI TR-02102'
 
 
@@ -45,20 +44,6 @@ def _setup_argparser():
     return parser.parse_args()
 
 
-def get_common_names(certificate: x509.Certificate) -> list [str]:
-    return [cn.value for cn in certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)]
-
-def get_dns_alternative_names(certificate: x509.Certificate) -> list[str]:
-    try:
-        dns_ext = certificate.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
-        dns_ext_value = cast(x509.SubjectAlternativeName, dns_ext.value)
-        return dns_ext_value.get_values_for_type(DNSName)
-    except ExtensionNotFound:
-        logging.warning('no dns alt names found')
-    except DuplicateExtension:
-        logging.error('more than on alternative name extension -> certificate is invalid')
-    return []
-
 def _check_server(server_address, default_port=443):
     logging.debug('checking server: {}'.format(server_address))
     port = default_port
@@ -66,12 +51,14 @@ def _check_server(server_address, default_port=443):
         raw_cert = ssl.get_server_certificate((str(server_address), 443), timeout=5)
     except OSError:
         logging.debug('{} is not reachable'.format(server_address))
+        return None
     except TimeoutError:
         logging.error('{} could not retrieve certificate on port {}'.format(server_address, port))
+        return None
     server_cert = x509.load_pem_x509_certificate(raw_cert.encode('utf-8'))
     common_names = get_common_names(server_cert)
     dns_alt_names = get_dns_alternative_names(server_cert)
-    logging.info('certificate found: CN={}; ALT_NAMES={}'.format(common_names, dns_alt_names))
+    logging.info('{} -> CN={}; ALT_NAMES={}'.format(server_address, common_names, dns_alt_names))
 
 
 if __name__ == '__main__':
