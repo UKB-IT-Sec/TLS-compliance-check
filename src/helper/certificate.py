@@ -23,8 +23,8 @@ from cryptography.x509 import ExtensionOID, DNSName, ExtensionNotFound, NameOID
 from cryptography.x509.extensions import DuplicateExtension
 
 
-def get_common_names(certificate: x509.Certificate) -> list [str]:
-    return [cn.value for cn in certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)]
+def get_common_names(certificate: x509.Certificate) -> str:
+    return [cn.value for cn in certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)][0]
 
 
 def get_dns_alternative_names(certificate: x509.Certificate) -> list[str]:

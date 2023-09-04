@@ -25,6 +25,7 @@ from cryptography import x509
 
 from helper.logging import setup_logging
 from helper.certificate import get_common_names, get_dns_alternative_names
+from opjects.server import Server
 
 
 PROGRAM_NAME = 'TLS-Compliance-Check'
@@ -55,10 +56,9 @@ def _check_server(server_address, default_port=443):
     except TimeoutError:
         logging.error('{} could not retrieve certificate on port {}'.format(server_address, port))
         return None
-    server_cert = x509.load_pem_x509_certificate(raw_cert.encode('utf-8'))
-    common_names = get_common_names(server_cert)
-    dns_alt_names = get_dns_alternative_names(server_cert)
-    logging.info('{} -> CN={}; ALT_NAMES={}'.format(server_address, common_names, dns_alt_names))
+    server = Server(server_address, x509.load_pem_x509_certificate(raw_cert.encode('utf-8')))
+    logging.info(server)
+    return server
 
 
 if __name__ == '__main__':
