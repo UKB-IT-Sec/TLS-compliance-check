@@ -54,3 +54,8 @@ def get_key_type(certificate: x509.Certificate) -> str:
     else:
         logging.warning('unknown key type: {}'.format(type(key_detail)))
         return type(key_detail)
+
+def get_curve(certificate: x509.Certificate) -> str:
+    key_detail = certificate.public_key().public_numbers()
+    curve = type(key_detail.curve).__name__
+    return curve

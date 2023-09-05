@@ -41,7 +41,7 @@ def _setup_argparser():
     parser.add_argument('-n', '--IPv4_network', help='IPv4 Network e.g. "192.168.0.0/24"', default=None)
     parser.add_argument('-n6', '--IPv6_network', help='IPv6 Network e.g. "2001:db00::0/120"', default=None)
     parser.add_argument('-R', '--store_report_to', help='store report file to this location', default=None)
-    parser.add_argument('-r', '--ruleset', help='select rule set', default='BSI_TR-02102-2_2023-01')
+    parser.add_argument('-r', '--ruleset', help='select rule set. DEFAULT="BSI_TR-02102-2_2023-01"', default='BSI_TR-02102-2_2023-01')
     parser.add_argument('-V', '--version', action='version', version='{} {}'.format(PROGRAM_NAME, PROGRAM_VERSION))
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='print debug messages')
     parser.add_argument('-s', '--silent', action='store_true', default=False, help='disable console output')
@@ -63,6 +63,7 @@ def _check_server(server_address, compliance_db, default_port=443):
     logging.info(current_server)
     current_server.check_dates()
     current_server.check_key_compliance(compliance_db)
+    current_server.check_curve(compliance_db)
     logging.debug(current_server.problems)
     return server
 

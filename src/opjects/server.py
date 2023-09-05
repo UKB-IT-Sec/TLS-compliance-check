@@ -18,7 +18,7 @@ import logging
 from datetime import datetime
 
 from helper.certificate import get_common_names, get_dns_alternative_names,\
-    get_key_size, get_key_type
+    get_key_size, get_key_type, get_curve
 
 
 class Server(object):
@@ -51,6 +51,13 @@ class Server(object):
                 self.problems['certificate']['key_length'] = '{} bit < {} bit (mandatory)'.format(self.key_size, compliance_db['Certificate']['KeyComplexity'][self.key_type])
         except KeyError:
             logging.error('key type not supported')
+
+    def check_curve(self, compliance_db):
+        if self.key_type == 'EC':
+            curve = get_curve(self.certificate)
+            if not curve in compliance_db['Certificate']['AllowedCurves']:
+                logging.error('curve is not allowed: {}'.format(curve))
+                self.problems['certificate']['curve'] = 'curve is not allowed: {}'.format(curve)
         
 
     def get_all_dns_names(self):
