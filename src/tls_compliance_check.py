@@ -24,7 +24,6 @@ from ipaddress import ip_address, IPv4Network, IPv6Network, AddressValueError
 from cryptography import x509
 
 from helper.logging import setup_logging
-from helper.certificate import get_common_names, get_dns_alternative_names
 from opjects.server import Server
 
 

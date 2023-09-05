@@ -15,30 +15,42 @@
 '''
 import logging
 
-from helper.certificate import get_common_names, get_dns_alternative_names
+from datetime import datetime
+
+from helper.certificate import get_common_names, get_dns_alternative_names,\
+    get_key_size, get_key_type
+
 
 class Server(object):
 
-    common_name = str()
-    dns_alt_names = list()
+    problems = {'certificate': dict(), 'tls_parameter': dict()}
 
     def __init__(self, ip_address, x509_certificate):
         self.ip_address = ip_address
         self.certificate = x509_certificate
         self.common_name = get_common_names(self.certificate)
         self.dns_alt_names = get_dns_alternative_names(self.certificate)
+        self.key_type = get_key_type(self.certificate)
+        self.key_size = get_key_size(self.certificate)
+        self.date_check()
+        logging.debug(self.problems)
 
+
+    def date_check(self):
+        current_time = datetime.now()
+        if self.certificate.not_valid_before > current_time:
+            logging.error('Certificate is not valid before: {}'.format(self.certificate.not_valid_before))
+            self.problems['certificate']['not_valid'] = 'not valid yet: {}'.format(self.certificate.not_valid_before)
+        if self.certificate.not_valid_after < current_time:
+            logging.error('Certificate is no longer valid: {}'.format(self.certificate.not_valid_after))
+            self.problems['certificate']['not_valid'] = 'expired: {}'.format(self.certificate.not_valid_after)    
 
     def get_all_dns_names(self):
         return set(self.common_name) | set(self.dns_alt_names)
 
-    def get_key_size(self):
-        logging.debug(self.certificate.public_key().public_numbers())
-        return self.certificate.public_key().key_size
-
 
     def __repr__(self):
-        return 'IP:{}; CN:{}; DNS_ALTNAMES:{}; key_size: {}'.format(self.ip_address, self.common_name, self.dns_alt_names, self.get_key_size())
+        return 'IP:{}; CN:{}; DNS_ALTNAMES:{}; key: {} {} bit; expire: {}'.format(self.ip_address, self.common_name, self.dns_alt_names, self.key_type, self.key_size, self.certificate.not_valid_after)
 
     
     def __str__(self):

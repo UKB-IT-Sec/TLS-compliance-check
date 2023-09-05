@@ -21,6 +21,8 @@ from typing import cast
 from cryptography import x509
 from cryptography.x509 import ExtensionOID, DNSName, ExtensionNotFound, NameOID
 from cryptography.x509.extensions import DuplicateExtension
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicNumbers
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePublicNumbers
 
 
 def get_common_names(certificate: x509.Certificate) -> str:
@@ -37,3 +39,18 @@ def get_dns_alternative_names(certificate: x509.Certificate) -> list[str]:
     except DuplicateExtension:
         logging.error('more than on alternative name extension -> certificate is invalid')
     return []
+
+
+def get_key_size(certificate: x509.Certificate) -> int:
+    return certificate.public_key().key_size
+
+
+def get_key_type(certificate: x509.Certificate) -> str:
+    key_detail = certificate.public_key().public_numbers() 
+    if type(key_detail) == RSAPublicNumbers:
+        return 'RSA'
+    elif type(key_detail) == EllipticCurvePublicNumbers:
+        return 'EC'
+    else:
+        logging.warning('unknown key type: {}'.format(type(key_detail)))
+        return type(key_detail)

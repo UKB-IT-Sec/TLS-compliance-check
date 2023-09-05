@@ -1,0 +1,10 @@
+{
+	"Certificate":
+	{
+		"KeyComplexity":
+		{
+			"RSA": 3000,
+			"EC": 250
+		}
+	}
+}
