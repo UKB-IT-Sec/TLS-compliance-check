@@ -37,18 +37,15 @@ class Server(object):
     def check_dates(self):
         current_time = datetime.now()
         if self.certificate.not_valid_before > current_time:
-            logging.error('Certificate is not valid before: {}'.format(self.certificate.not_valid_before))
-            self.problems['certificate']['not_valid'] = 'not valid yet: {}'.format(self.certificate.not_valid_before)
+            self.problems['certificate']['not_valid'] = 'certificate not valid yet: {}'.format(self.certificate.not_valid_before)
         if self.certificate.not_valid_after < current_time:
-            logging.error('Certificate is no longer valid: {}'.format(self.certificate.not_valid_after))
-            self.problems['certificate']['not_valid'] = 'expired: {}'.format(self.certificate.not_valid_after)
+            self.problems['certificate']['not_valid'] = 'certificate expired: {}'.format(self.certificate.not_valid_after)
     
     
     def check_key_compliance(self, compliance_db):
         try:
             if self.key_size <= compliance_db['Certificate']['KeyComplexity'][self.key_type]:
-                logging.error('key size not compliant: {}'.format(self.key_size))
-                self.problems['certificate']['key_length'] = '{} bit < {} bit (mandatory)'.format(self.key_size, compliance_db['Certificate']['KeyComplexity'][self.key_type])
+                self.problems['certificate']['key_length'] = 'key length to small: {} bit < {} bit (mandatory)'.format(self.key_size, compliance_db['Certificate']['KeyComplexity'][self.key_type])
         except KeyError:
             logging.error('key type not supported')
 
@@ -56,12 +53,25 @@ class Server(object):
         if self.key_type == 'EC':
             curve = get_curve(self.certificate)
             if not curve in compliance_db['Certificate']['AllowedCurves']:
-                logging.error('curve is not allowed: {}'.format(curve))
                 self.problems['certificate']['curve'] = 'curve is not allowed: {}'.format(curve)
-        
 
-    def get_all_dns_names(self):
-        return set(self.common_name) | set(self.dns_alt_names)
+
+    def is_compliant(self):
+        return len(self.problems['certificate']) == 0 and len(self.problems['tls_parameter']) == 0
+
+
+    def generate_txt_report(self):
+        header = 'Results for {} - {}\n'.format(self.ip_address, self.common_name)
+        dns_alt_names = 'DNS alternative names: {}\n'.format('; '.join(self.dns_alt_names))
+        if self.is_compliant():
+            compliant = 'Server is compliant'
+        else:
+            problems = 'Certificate: \n'
+            for problem in self.problems['certificate']:
+                problems += '- {}\n'.format(self.problems['certificate'][problem])
+            compliant = 'Server is not compliant because of the following problems: \n{}'.format(problems)
+            
+        return header + dns_alt_names + compliant
 
 
     def __repr__(self):

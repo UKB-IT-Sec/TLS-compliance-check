@@ -57,14 +57,13 @@ def _check_server(server_address, compliance_db, default_port=443):
         logging.debug('{} is not reachable'.format(server_address))
         return None
     except TimeoutError:
-        logging.error('{} could not retrieve certificate on port {}'.format(server_address, port))
+        logging.debug('{} could not retrieve certificate on port {}'.format(server_address, port))
         return None
     current_server = Server(server_address, x509.load_pem_x509_certificate(raw_cert.encode('utf-8')))
-    logging.info(current_server)
     current_server.check_dates()
     current_server.check_key_compliance(compliance_db)
     current_server.check_curve(compliance_db)
-    logging.debug(current_server.problems)
+    print(current_server.generate_txt_report())
     return server
 
 
