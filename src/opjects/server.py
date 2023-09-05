@@ -32,18 +32,26 @@ class Server(object):
         self.dns_alt_names = get_dns_alternative_names(self.certificate)
         self.key_type = get_key_type(self.certificate)
         self.key_size = get_key_size(self.certificate)
-        self.date_check()
-        logging.debug(self.problems)
 
 
-    def date_check(self):
+    def check_dates(self):
         current_time = datetime.now()
         if self.certificate.not_valid_before > current_time:
             logging.error('Certificate is not valid before: {}'.format(self.certificate.not_valid_before))
             self.problems['certificate']['not_valid'] = 'not valid yet: {}'.format(self.certificate.not_valid_before)
         if self.certificate.not_valid_after < current_time:
             logging.error('Certificate is no longer valid: {}'.format(self.certificate.not_valid_after))
-            self.problems['certificate']['not_valid'] = 'expired: {}'.format(self.certificate.not_valid_after)    
+            self.problems['certificate']['not_valid'] = 'expired: {}'.format(self.certificate.not_valid_after)
+    
+    
+    def check_key_compliance(self, compliance_db):
+        try:
+            if self.key_size <= compliance_db['Certificate']['KeyComplexity'][self.key_type]:
+                logging.error('key size not compliant: {}'.format(self.key_size))
+                self.problems['certificate']['key_length'] = '{} bit < {} bit (mandatory)'.format(self.key_size, compliance_db['Certificate']['KeyComplexity'][self.key_type])
+        except KeyError:
+            logging.error('key type not supported')
+        
 
     def get_all_dns_names(self):
         return set(self.common_name) | set(self.dns_alt_names)

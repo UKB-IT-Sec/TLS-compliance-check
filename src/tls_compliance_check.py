@@ -22,9 +22,12 @@ import ssl
 
 from ipaddress import ip_address, IPv4Network, IPv6Network, AddressValueError
 from cryptography import x509
+from pathlib import Path
 
 from helper.logging import setup_logging
 from opjects.server import Server
+from helper.compliance_database import load_compliance_database,\
+    get_compliance_ruleset_folder
 
 
 PROGRAM_NAME = 'TLS-Compliance-Check'
@@ -38,13 +41,14 @@ def _setup_argparser():
     parser.add_argument('-n', '--IPv4_network', help='IPv4 Network e.g. "192.168.0.0/24"', default=None)
     parser.add_argument('-n6', '--IPv6_network', help='IPv6 Network e.g. "2001:db00::0/120"', default=None)
     parser.add_argument('-R', '--store_report_to', help='store report file to this location', default=None)
+    parser.add_argument('-r', '--ruleset', help='select rule set', default='BSI_TR-02102-2_2023-01')
     parser.add_argument('-V', '--version', action='version', version='{} {}'.format(PROGRAM_NAME, PROGRAM_VERSION))
     parser.add_argument('-d', '--debug', action='store_true', default=False, help='print debug messages')
     parser.add_argument('-s', '--silent', action='store_true', default=False, help='disable console output')
     return parser.parse_args()
 
 
-def _check_server(server_address, default_port=443):
+def _check_server(server_address, compliance_db, default_port=443):
     logging.debug('checking server: {}'.format(server_address))
     port = default_port
     try:
@@ -55,14 +59,19 @@ def _check_server(server_address, default_port=443):
     except TimeoutError:
         logging.error('{} could not retrieve certificate on port {}'.format(server_address, port))
         return None
-    server = Server(server_address, x509.load_pem_x509_certificate(raw_cert.encode('utf-8')))
-    logging.info(server)
+    current_server = Server(server_address, x509.load_pem_x509_certificate(raw_cert.encode('utf-8')))
+    logging.info(current_server)
+    current_server.check_dates()
+    current_server.check_key_compliance(compliance_db)
+    logging.debug(current_server.problems)
     return server
 
 
 if __name__ == '__main__':
     args = _setup_argparser()
     setup_logging(args.debug)
+    
+    compliance_db = load_compliance_database(get_compliance_ruleset_folder() / Path(args.ruleset + '.json'))
 
     if args.ip_address:
         try:
@@ -70,7 +79,7 @@ if __name__ == '__main__':
         except ValueError:
             logging.error('"{}" is not a valid ip address'.format(args.ip_address))
             sys.exit(1)
-        _check_server(server)
+        _check_server(server, compliance_db)
     elif args.IPv4_network:
         try:
             subnet = IPv4Network(args.IPv4_network)
@@ -79,7 +88,7 @@ if __name__ == '__main__':
             sys.exit(1)
         logging.info('checking {} ip-addresses in subnet {}'.format(subnet.num_addresses-2, subnet.exploded))
         for server in subnet.hosts():
-            _check_server(server)
+            _check_server(server, compliance_db)
     elif args.IPv6_network:
         try:
             subnet = IPv6Network(args.IPv6_network)
@@ -88,7 +97,7 @@ if __name__ == '__main__':
             sys.exit(1)
         logging.info('checking {} ip-addresses in subnet {}'.format(subnet.num_addresses-2, subnet.exploded))
         for server in subnet.hosts():
-            _check_server(server)
+            _check_server(server, compliance_db)
     else:
         logging.error('No input given. You need to set "-ip", "-n" or "-n6" parameter. Use "-h" to get more details.')
         sys.exit(2)
